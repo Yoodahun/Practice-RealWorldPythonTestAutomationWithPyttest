@@ -1,5 +1,6 @@
 import json
 import logging
+from typing import List
 
 import pytest
 from django.urls import reverse
@@ -17,15 +18,14 @@ def test_zero_companies_should_return_empty_list(client) -> None:
     assert json.loads(response.content) == []
 
 
-def test_one_company_exists_should_succeed(client) -> None:
-    amazon = Company.objects.create(name="Amazon")
+def test_one_company_exists_should_succeed(client, amazon) -> None:
     response = client.get(companies_url)
     response_content = json.loads(response.content)[0]
     print(response_content.get("name"))
     print(response_content["name"])
 
     assert response.status_code == 200
-    assert response_content.get("name") == "Amazon"
+    assert response_content.get("name") == amazon.name
 
 
 def test_create_company_without_arguments_should_fail(client):
@@ -42,8 +42,8 @@ def test_create_existing_company_should_fail(client):
 
     assert response.status_code == 400
     assert (
-        json.loads(response.content)["name"][0]
-        == "company with this name already exists."
+            json.loads(response.content)["name"][0]
+            == "company with this name already exists."
     )
 
 
@@ -104,3 +104,31 @@ def function_that_logs_something():
 def test_logged_warning_level(caplog) -> None:
     function_that_logs_something()
     assert "I am logging CoronaVirus Exception" in caplog.text
+
+
+# --------------
+
+
+
+
+@pytest.mark.parametrize(
+    "companies", [
+        ["Tictok", "Twitch","Test Company INC"],
+        ["Facebook", "Instagram"]
+    ],
+    indirect=True
+)
+def test_multiple_companies_exists_should_succeed(client, companies) -> None:
+    company_names = set(map(lambda x :x.name, companies))
+    response_content = client.get(companies_url).json()
+    print(company_names)
+    print(response_content)
+    print("--------")
+
+    assert len(company_names) == len(response_content)
+
+    response_company_names = set(
+        map(lambda company: company["name"], response_content)
+    )
+    print(response_company_names)
+    assert company_names == response_company_names
